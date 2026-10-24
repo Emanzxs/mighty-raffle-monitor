@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mighty.ph Raffle Monitor</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --surface: #ffffff;
+    --border: #e2e2e7;
+    --text: #1a1a1e;
+    --text-dim: #6b6b76;
+    --accent: #e4572e;
+    --accent-dim: #fdeee8;
+    --green: #1c8a4b;
+    --green-bg: #e8f7ee;
+    --red: #c23030;
+    --red-bg: #fbeaea;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141416;
+      --surface: #1e1e21;
+      --border: #303034;
+      --text: #f0f0f2;
+      --text-dim: #9a9aa2;
+      --accent: #ff7a4d;
+      --accent-dim: #3a2219;
+      --green: #4cd37d;
+      --green-bg: #113322;
+      --red: #ff6b6b;
+      --red-bg: #3a1818;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141416;
+    --surface: #1e1e21;
+    --border: #303034;
+    --text: #f0f0f2;
+    --text-dim: #9a9aa2;
+    --accent: #ff7a4d;
+    --accent-dim: #3a2219;
+    --green: #4cd37d;
+    --green-bg: #113322;
+    --red: #ff6b6b;
+    --red-bg: #3a1818;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px) 0;
+  }
+  .wrap {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 19px;
+    margin: 0;
+    font-weight: 700;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  select, button {
+    font-family: inherit;
+    font-size: 13.5px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  button.primary.paused {
+    background: var(--text-dim);
+    border-color: var(--text-dim);
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .status-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+  }
+  .dot.live { background: var(--green); box-shadow: 0 0 0 3px var(--green-bg); }
+  .dot.err { background: var(--red); box-shadow: 0 0 0 3px var(--red-bg); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .card h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-dim);
+    margin: 0 0 10px;
+    font-weight: 700;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--text-dim);
+    padding: 0 8px 8px 0;
+    font-weight: 600;
+  }
+  td { padding: 8px 8px 8px 0; border-top: 1px solid var(--border); vertical-align: middle; }
+  tr:first-child td { border-top: none; }
+  .prize-name { font-weight: 600; }
+  .prize-sub { color: var(--text-dim); font-size: 12px; }
+  .qty { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+  .delta {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    text-align: right;
+    padding: 2px 7px;
+    border-radius: 6px;
+    display: inline-block;
+    min-width: 36px;
+  }
+  .delta.down { background: var(--red-bg); color: var(--red); }
+  .delta.flat { color: var(--text-dim); }
+  .overflow-x { overflow-x: auto; }
+  .log-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .log-table th { text-align: left; padding: 0 10px 6px 0; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
+  .log-table td { padding: 6px 10px 6px 0; border-top: 1px solid var(--border); white-space: nowrap; }
+  .log-empty { color: var(--text-dim); font-size: 13px; padding: 10px 0; text-align: center; }
+  .amt-down { color: var(--red); font-weight: 700; }
+  footer-note { display:block; color: var(--text-dim); font-size: 11.5px; margin-top: 4px; }
+  .err-box {
+    background: var(--red-bg);
+    color: var(--red);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .err-box.show { display: block; }
+  .pill {
+    font-size: 11px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>🎯 Mighty.ph Raffle Monitor</h1>
+      <div class="sub">Tracking prize quantities from be.mighty.ph/api/v1/raffles</div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <button class="primary" id="toggleBtn">⏸ Pause</button>
+    <select id="interval">
+      <option value="15000">Every 15s</option>
+      <option value="30000" selected>Every 30s</option>
+      <option value="60000">Every 1 min</option>
+      <option value="120000">Every 2 min</option>
+      <option value="300000">Every 5 min</option>
+    </select>
+    <button id="checkNowBtn">Check now</button>
+    <button id="clearLogBtn">Clear log</button>
+  </div>
+
+  <div class="status-line">
+    <span class="dot" id="statusDot"></span>
+    <span id="statusText">Starting…</span>
+  </div>
+
+  <div class="err-box" id="errBox"></div>
+
+  <div class="card">
+    <h2>Current quantities</h2>
+    <div class="overflow-x">
+      <table>
+        <thead>
+          <tr>
+            <th>Prize</th>
+            <th style="text-align:right">Qty left</th>
+            <th style="text-align:right">Change</th>
+          </tr>
+        </thead>
+        <tbody id="qtyBody">
+          <tr><td colspan="3" class="log-empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Change log <span class="pill" id="logCount">0</span></h2>
+    <div class="overflow-x">
+      <table class="log-table">
+        <thead>
+          <tr><th>Time</th><th>Prize</th><th>From → To</th><th>Change</th></tr>
+        </thead>
+        <tbody id="logBody">
+          <tr><td colspan="4" class="log-empty">No changes logged yet. Keep this tab open — every decrease in quantity will appear here with a timestamp.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const LOCAL_API_URL = "/api/raffles"; // served by server.js on your machine
+const qtyBody = document.getElementById("qtyBody");
+const logBody = document.getElementById("logBody");
+const logCount = document.getElementById("logCount");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+const errBox = document.getElementById("errBox");
+const toggleBtn = document.getElementById("toggleBtn");
+const intervalSel = document.getElementById("interval");
+const checkNowBtn = document.getElementById("checkNowBtn");
+const clearLogBtn = document.getElementById("clearLogBtn");
+
+let lastQuantities = {}; // id -> {name, desc, qty}
+let logEntries = [];     // {time, name, desc, from, to, delta}
+let timer = null;
+let paused = false;
+let isFirstLoad = true;
+
+function fmtTime(d) {
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+}
+function fmtDate(d) {
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function renderQtyTable(items) {
+  qtyBody.innerHTML = "";
+  items.forEach(item => {
+    const prev = lastQuantities[item.id];
+    const tr = document.createElement("tr");
+
+    const nameTd = document.createElement("td");
+    nameTd.innerHTML = `<div class="prize-name">${escapeHtml(item.name)}</div><div class="prize-sub">${escapeHtml(item.desc || '')}</div>`;
+
+    const qtyTd = document.createElement("td");
+    qtyTd.className = "qty";
+    qtyTd.textContent = item.qty.toLocaleString();
+
+    const deltaTd = document.createElement("td");
+    deltaTd.style.textAlign = "right";
+    if (prev !== undefined && prev.qty !== item.qty) {
+      const diff = item.qty - prev.qty;
+      const span = document.createElement("span");
+      span.className = "delta " + (diff < 0 ? "down" : "flat");
+      span.textContent = (diff > 0 ? "+" : "") + diff.toLocaleString();
+      deltaTd.appendChild(span);
+    } else {
+      deltaTd.innerHTML = `<span class="delta flat">—</span>`;
+    }
+
+    tr.appendChild(nameTd);
+    tr.appendChild(qtyTd);
+    tr.appendChild(deltaTd);
+    qtyBody.appendChild(tr);
+  });
+}
+
+function renderLog() {
+  if (logEntries.length === 0) {
+    logBody.innerHTML = `<tr><td colspan="4" class="log-empty">No changes logged yet. Keep this tab open — every decrease in quantity will appear here with a timestamp.</td></tr>`;
+    logCount.textContent = "0";
+    return;
+  }
+  logBody.innerHTML = "";
+  // newest first
+  [...logEntries].reverse().forEach(e => {
+    const tr = document.createElement("tr");
+    const cls = e.delta < 0 ? "amt-down" : "";
+    tr.innerHTML = `
+      <td>${fmtDate(e.time)} ${fmtTime(e.time)}</td>
+      <td>${escapeHtml(e.name)}${e.desc ? ' <span class="prize-sub">(' + escapeHtml(e.desc) + ')</span>' : ''}</td>
+      <td>${e.from.toLocaleString()} → ${e.to.toLocaleString()}</td>
+      <td class="${cls}">${e.delta > 0 ? '+' : ''}${e.delta.toLocaleString()}</td>
+    `;
+    logBody.appendChild(tr);
+  });
+  logCount.textContent = String(logEntries.length);
+}
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return "";
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function setStatus(state, text) {
+  statusDot.className = "dot" + (state === "live" ? " live" : state === "err" ? " err" : "");
+  statusText.textContent = text;
+}
+
+async function fetchFromLocalServer() {
+  const res = await fetch(LOCAL_API_URL, { cache: "no-store" });
+  const json = await res.json();
+  if (!res.ok || json.error) {
+    throw new Error(json.message || ("HTTP " + res.status));
+  }
+  return json;
+}
+
+async function checkNow() {
+  setStatus("checking", "Checking…");
+  try {
+    const json = await fetchFromLocalServer();
+    if (!json || !Array.isArray(json.data)) throw new Error("Unexpected response shape");
+
+    const items = json.data.map(d => ({
+      id: d.id,
+      name: d.name,
+      desc: d.description,
+      qty: (d.prize && typeof d.prize.quantity === "number") ? d.prize.quantity : null
+    })).filter(d => d.qty !== null);
+
+    const now = new Date();
+
+    if (!isFirstLoad) {
+      items.forEach(item => {
+        const prev = lastQuantities[item.id];
+        if (prev && prev.qty !== item.qty) {
+          logEntries.push({
+            time: now,
+            name: item.name,
+            desc: item.desc,
+            from: prev.qty,
+            to: item.qty,
+            delta: item.qty - prev.qty
+          });
+        }
+      });
+      renderLog();
+    }
+
+    const newMap = {};
+    items.forEach(it => newMap[it.id] = { name: it.name, desc: it.desc, qty: it.qty });
+
+    renderQtyTable(items);
+    lastQuantities = newMap;
+    isFirstLoad = false;
+
+    errBox.classList.remove("show");
+    setStatus("live", "Last checked " + fmtTime(now) + (paused ? " · paused" : " · next check in " + (parseInt(intervalSel.value)/1000) + "s"));
+  } catch (err) {
+    setStatus("err", "Error checking — will retry");
+    errBox.textContent = "Couldn't reach the API: " + err.message + ". This page may be blocked by the site's protection, or you may need to keep the mighty.ph site open in another tab first. Will keep retrying.";
+    errBox.classList.add("show");
+  }
+}
+
+function scheduleNext() {
+  if (timer) clearTimeout(timer);
+  if (paused) return;
+  const ms = parseInt(intervalSel.value, 10);
+  timer = setTimeout(async () => {
+    await checkNow();
+    scheduleNext();
+  }, ms);
+}
+
+toggleBtn.addEventListener("click", () => {
+  paused = !paused;
+  toggleBtn.textContent = paused ? "▶ Resume" : "⏸ Pause";
+  toggleBtn.classList.toggle("paused", paused);
+  if (paused) {
+    if (timer) clearTimeout(timer);
+    setStatus("", "Paused");
+  } else {
+    scheduleNext();
+    checkNow();
+  }
+});
+
+checkNowBtn.addEventListener("click", () => {
+  checkNow();
+});
+
+clearLogBtn.addEventListener("click", () => {
+  logEntries = [];
+  renderLog();
+});
+
+intervalSel.addEventListener("change", () => {
+  if (!paused) scheduleNext();
+});
+
+// initial load
+checkNow().then(() => scheduleNext());
+</script>
+</body>
+</html>
